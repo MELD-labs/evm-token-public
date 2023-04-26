@@ -1,0 +1,115 @@
+name: meld-evm-token CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: self-hosted
+    if: ${{ !github.event.pull_request.draft }}
+    name: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      - name: Setup node
+        uses: actions/setup-node@v3.5.1
+        with:
+          node-version: "16"
+          cache: "npm"
+      - run: npm --version
+      - name: Install dependencies
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: install # will run `yarn install` command
+      - name: Clean
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: clean # will run `yarn clean` command
+      - name: Compile
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: compile # will run `yarn compile` command
+      - name: Run prettier
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: prettier:check # will run `yarn prettier:check` command
+      - name: Run solhint
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: solhint # will run `yarn solhint` command
+
+  test:
+    needs: build
+    runs-on: self-hosted
+    if: ${{ !github.event.pull_request.draft }}
+    name: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      - name: Setup node
+        uses: actions/setup-node@v3.5.1
+        with:
+          node-version: "16"
+          cache: "npm"
+      - name: Install dependencies
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: install # will run `yarn install` command
+      - name: Clean
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: clean # will run `yarn clean` command
+      - name: Compile
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: compile # will run `yarn compile` command
+      - name: Unit Tests
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: test # will run `yarn test` command
+
+  coverage:
+    needs: build
+    runs-on: self-hosted
+    if: ${{ !github.event.pull_request.draft }}
+    name: coverage
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      - name: Setup node
+        uses: actions/setup-node@v3.5.1
+        with:
+          node-version: "16"
+          cache: "npm"
+      - name: Install dependencies
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: install # will run `yarn install` command
+      - name: Clean
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: clean # will run `yarn clean` command
+      - name: Compile
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: compile # will run `yarn compile` command
+      - name: Coverage
+        uses: borales/actions-yarn@v4.2.0
+        with:
+          cmd: coverage # will run `yarn coverage` command
+      - name: Check Code Coverage
+        shell: bash
+        run: |
+          MIN_COVERAGE=97
+          COVERAGE=`grep -a -m 1 -h -r '<span class="strong">' coverage/index.html | head -1 | sed 's/^[^>]*>//' | sed 's/%.*$//'`
+          echo "solidity code coverage is '$COVERAGE'"
+          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then echo "Fail: code coverage '$COVERAGE' is lower than configured '$MIN_COVERAGE'" >&2; exit 1; fi
+
